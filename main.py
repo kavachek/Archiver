@@ -7,16 +7,29 @@ from tkinter import filedialog
 
 class HuffmanNode:
     def __init__(self, character=None, frequency=0):
+        """
+        Инициализация узла дерева Хаффмана.
+        :param character: Символ
+        :param frequency: Частота символа
+        """
         self.character = character
         self.frequency = frequency
         self.left = None
         self.right = None
 
     def __lt__(self, other):
+        """
+        Переопределение оператора '<' для сравнения узлов дерева Хаффмана.
+        """
         return self.frequency < other.frequency
 
 
 def build_frequency_table(data):
+    """
+    Построение таблицы частот символов в тексте.
+    :param data: Входной текст
+    :return: Таблица частот символов
+    """
     frequency_table = defaultdict(int)
     for char in data:
         frequency_table[char] += 1
@@ -24,6 +37,11 @@ def build_frequency_table(data):
 
 
 def build_huffman_tree(frequency_table):
+    """
+    Построение дерева Хаффмана на основе таблицы частот символов.
+    :param frequency_table: Таблица частот символов
+    :return: Корень дерева Хаффмана
+    """
     heap = []
     for char, freq in frequency_table.items():
         node = HuffmanNode(char, freq)
@@ -44,6 +62,11 @@ def build_huffman_tree(frequency_table):
 
 
 def build_encoding_table(huffman_tree):
+    """
+    Построение таблицы кодирования на основе дерева Хаффмана.
+    :param huffman_tree: Корень дерева Хаффмана
+    :return: Таблица кодирования
+    """
     encoding_table = {}
     current_code = ""
 
@@ -59,6 +82,11 @@ def build_encoding_table(huffman_tree):
 
 
 def compress_file(file_path):
+    """
+    Сжатие файла с использованием алгоритма Хаффмана.
+    :param file_path: Путь к файлу
+    :return: Сообщение об успешном выполнении операции или пустая строка, если что-то пошло не так
+    """
     if not os.path.isfile(file_path):
         return ""
 
@@ -81,31 +109,39 @@ def compress_file(file_path):
         compressed_data += encoding_table[char]
 
     compressed_file_path = file_path + ".compressed"
+    encoding_table_file_path = file_path + ".encoding"
 
     with open(compressed_file_path, "w", encoding="utf-8") as compressed_file:
-
-        for char, code in encoding_table.items():
-            compressed_file.write(f"{char}:{code}\n")
-        compressed_file.write("===\n")
+        # Записываем сжатые данные в сжатый файл
         compressed_file.write(compressed_data)
+
+    with open(encoding_table_file_path, "w", encoding="utf-8") as encoding_table_file:
+        # Записываем таблицу кодирования в отдельный файл
+        for char, code in encoding_table.items():
+            encoding_table_file.write(f"{char}:{code}\n")
+
     return "Операция выполнена успешно!"
 
 
-def decompress_file(compressed_file_path):
-    if not os.path.isfile(compressed_file_path):
-        return "Такого файла нет, отправьте другой файл."
+def decompress_file(compressed_file_path, encoding_table_file_path):
+    """
+    Распаковка сжатого файла, сжатого с использованием алгоритма Хаффмана.
+    :param encoding_table_file_path:
+    :param compressed_file_path: Путь к сжатому файлу
+    :return: Сообщение об успешном выполнении операции или пустая строка, если что-то пошло не так
+    """
+    if not os.path.isfile(compressed_file_path) or not os.path.isfile(encoding_table_file_path):
+        return "Неверные пути к файлам, отправьте правильные файлы."
 
-    with open(compressed_file_path, "r", encoding="utf-8") as compressed_file:
-
+    with open(encoding_table_file_path, "r", encoding="utf-8") as encoding_table_file:
         encoding_table = {}
-        line = compressed_file.readline().strip()
-        while line != "===":
-            parts = line.split(":")
+        for line in encoding_table_file:
+            parts = line.strip().split(":")
             if len(parts) == 2:
                 char, code = parts
                 encoding_table[code] = char
-            line = compressed_file.readline().strip()
 
+    with open(compressed_file_path, "r", encoding="utf-8") as compressed_file:
         compressed_data = compressed_file.read()
 
     if not compressed_data:
@@ -120,12 +156,12 @@ def decompress_file(compressed_file_path):
             decoded_data += char
             current_code = ""
 
-    decompressed_file_path = compressed_file_path + ".decompressed"
+    decompressed_file_path = compressed_file_path.replace(".compressed", ".decompressed")
 
     with open(decompressed_file_path, "w", encoding="utf-8") as decompressed_file:
         decompressed_file.write(decoded_data)
-    return "Операция выполнена успешно!"
 
+    return "Операция выполнена успешно!"
 
 class HuffmanEncoderDecoderApp:
     def __init__(self):
@@ -146,21 +182,38 @@ class HuffmanEncoderDecoderApp:
         self.start_button.pack(pady=10)
 
     def encode_file(self):
+        """
+        Обработчик события нажатия кнопки "Загрузить файл для кодирования".
+        Открывает диалоговое окно для выбора файла и запускает сжатие выбранного файла.
+        """
         file_path = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt")])
         if file_path:
             compression_result = compress_file(file_path)
             print(compression_result)
 
     def decode_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Text Files", "*.compressed")])
-        if file_path:
-            decompression_result = decompress_file(file_path)
+        """
+        Обработчик события нажатия кнопки "Загрузить файл для раскодирования".
+        Открывает диалоговое окно для выбора сжатого файла и запускает его распаковку.
+        """
+        compressed_file_path = filedialog.askopenfilename(filetypes=[("Text Files", "*.compressed")])
+        if compressed_file_path:
+            # Получаем путь к файлу с таблицей кодирования
+            encoding_table_file_path = compressed_file_path.replace(".compressed", ".encoding")
+            decompression_result = decompress_file(compressed_file_path, encoding_table_file_path)
             print(decompression_result)
 
     def run_program(self):
+        """
+        Обработчик события нажатия кнопки "Запустить программу".
+        В данном случае, метод не выполняет никаких действий.
+        """
         pass
 
     def run(self):
+        """
+        Запуск главного цикла программы.
+        """
         self.window.mainloop()
 
 
